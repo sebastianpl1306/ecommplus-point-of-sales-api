@@ -53,6 +53,11 @@ const UserSchema: Schema = new Schema({
         type: Boolean,
         required: true,
         default: false
+    },
+    pointOfSales: {
+        type: Types.ObjectId,
+        ref: 'PointOfSales',
+        required: false
     }
 }, { timestamps: true });
 

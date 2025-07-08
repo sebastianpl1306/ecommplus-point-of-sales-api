@@ -55,7 +55,7 @@ export class TableController {
      * Permite obtener las mesas de un punto de venta
      */
     async getTables (request: Request, response: Response) {
-        const { pointOfSalesId } = request.body;
+        const pointOfSalesId = request.query.pointOfSalesId as string;
 
         try {
             const tables = await this.tableService.getTables(pointOfSalesId);
@@ -75,6 +75,33 @@ export class TableController {
             })
         } catch (error) {
             console.error('[ERROR][getTables]', error)
+            response.status(500).json({
+                ok: false,
+                msg: "Ups! Error invoke"
+            })
+            return;
+        }
+    }
+
+    async getTableById (request: Request, response: Response) {
+        const tableId = request.query.tableId as string;
+
+        try {
+            const table = await this.tableService.getTableById(tableId);
+            if(!table) {
+                console.error(`[ERROR][getTableById]`, { tableId });
+                response.status(401).json({
+                    ok: false,
+                    msg: "Error getting table"
+                })
+                return;
+            }
+            response.status(200).json({
+                ok: true,
+                table
+            })
+        } catch (error) {
+            console.error('[ERROR][getTableById]', error)
             response.status(500).json({
                 ok: false,
                 msg: "Ups! Error invoke"

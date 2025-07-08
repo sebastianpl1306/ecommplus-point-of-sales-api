@@ -26,7 +26,7 @@ export const OrderPointSchema = new Schema({
     user: {
       type: Types.ObjectId,
       ref: "User",
-      required: true
+      required: false
     }
   }, { timestamps: true });
   

@@ -7,7 +7,7 @@ interface CreateOrderParams {
   products: ProductsOrderPoint[];
   status: OrderPointStatus;
   subtotal: number;
-  userId: string;
+  userId?: string;
   pointOfSalesId: string;
 }
 
@@ -53,7 +53,8 @@ export class OrderPointService {
   */
   async createOrderPoint ({ tableId, products, status, subtotal, userId, pointOfSalesId }: CreateOrderParams) {
     try {
-      if (!tableId || !products || !status || !subtotal || !userId ) {
+      if (!tableId || !products || !status || !subtotal || !pointOfSalesId) {
+        console.error('[ERROR][createOrderPoint] missing info', { tableId, products, status, subtotal, pointOfSalesId, userId });
         throw new Error('missing info');
       }
 

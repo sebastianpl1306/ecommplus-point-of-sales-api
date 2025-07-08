@@ -11,49 +11,129 @@ export class OrderPointController {
         this.orderPointService = new OrderPointService();
     }
 
+    /**
+     * @description Updates an existing order by adding new products or updating quantities of existing ones.
+     */
     async updateOrderPoint (request: Request, response: Response) {
-        const { products, pointOfSalesId } = request.body;
+        const { products } = request.body;
+        const orderPointId = request.params.orderPointId;
         const { companyId, uid }: InfoTokenSave = request.body.tokenInfo;
+
         try {
-            if (!products || !pointOfSalesId) {
-                response.status(401).json({
-                    ok:false,
-                    msg: 'Info missing'
-                })
+            if (!products || !orderPointId) {
+                response.status(400).json({
+                    ok: false,
+                    msg: 'Missing information: products or orderPointId are required.'
+                });
                 return;
             }
 
-            const orderPoint = await OrderPointModel.findById(pointOfSalesId);
+            const orderPoint = await OrderPointModel.findById(orderPointId)
 
-            //Validar que la orden exista
-            if(!orderPoint){
+            if (!orderPoint) {
                 response.status(404).json({
                     ok: false,
-                    msg: 'Order not found'
-                })
+                    msg: 'Order not found.'
+                });
                 return;
             }
 
-            const productsOrderPoint: ProductsOrderPoint[] = [...orderPoint.products];
-            for (const product of products) {
+            // Ensure the order belongs to the correct company (security check)
+            const pointOfSales = await PointOfSalesModel.findById(orderPoint.pointOfSales);
+            if (!pointOfSales || pointOfSales.company.toString() !== companyId) {
+                response.status(401).json({
+                    ok: false,
+                    msg: 'Unauthorized: Order does not belong to your company.'
+                });
+                return;
+            }
 
-                //necesitamos verificar que el producto si existe actualizar su cantidad y si no existe agregarlo
-                if(productsOrderPoint.some((productOrder: ProductsOrderPoint) => productOrder.product.toString() === product.product)){
-                    console.log({ product });
+            const currentProductsInOrder: ProductsOrderPoint[] = [...orderPoint.products];
+            let subtotal = orderPoint.subtotal || 0;
+
+            const company = await CompanyModel.findById(companyId).populate('config');
+            const isStockActive = company?.config?.isStockActive || false;
+
+            for (const productToAdd of products) {
+                const productDb = await ProductModel.findById(productToAdd.product);
+
+                if (!productDb) {
+                    // Log an error but continue processing other products
+                    console.warn(`[WARNING][updateOrderPoint] Product with ID ${productToAdd.product} not found. Skipping.`);
+                    continue;
+                }
+
+                if (isStockActive && productToAdd.amount > productDb.stock) {
+                    response.status(403).json({
+                        ok: false,
+                        msg: `Not enough stock available for product: ${productDb.name}. Available: ${productDb.stock}, Requested: ${productToAdd.amount}`
+                    });
+                    return;
+                }
+
+                const existingProductIndex = currentProductsInOrder.findIndex(
+                    (p) => p.product.toString() === productToAdd.product
+                );
+
+                const productPrice = productDb.pointPrice;
+                const discountRate = productDb.discountRate || 0;
+                const finalProductPrice = discountRate > 0
+                    ? productPrice - (productPrice * discountRate / 100)
+                    : productPrice;
+
+                if (existingProductIndex !== -1) {
+                    // Product already exists in the order, update its quantity and price
+                    const existingProduct = currentProductsInOrder[existingProductIndex];
+                    
+                    // Adjust subtotal by removing old product total and adding new product total
+                    subtotal -= existingProduct.amount * existingProduct.price;
+                    existingProduct.amount += productToAdd.amount;
+                    existingProduct.price = finalProductPrice; // Ensure updated price is used
+                    existingProduct.note = productToAdd.note || existingProduct.note;
+                    existingProduct.optionsSelected = productToAdd.optionsSelected || existingProduct.optionsSelected;
+                    subtotal += existingProduct.amount * finalProductPrice;
+
+                    if (isStockActive) {
+                        productDb.stock -= productToAdd.amount;
+                        await productDb.save();
+                    }
+                } else {
+                    // Product is new to this order, add it
+                    if (isStockActive) {
+                        productDb.stock -= productToAdd.amount;
+                        await productDb.save();
+                    }
+                    subtotal += productToAdd.amount * finalProductPrice;
+                    currentProductsInOrder.push({
+                        product: productDb._id as string,
+                        amount: productToAdd.amount,
+                        price: finalProductPrice,
+                        status: ProductOrderPointStatus.PENDING, // New products are pending by default
+                        note: productToAdd.note,
+                        optionsSelected: productToAdd.optionsSelected
+                    });
                 }
             }
 
+            orderPoint.products = currentProductsInOrder;
+            orderPoint.subtotal = subtotal;
+
+            await orderPoint.save();
+
             response.status(200).json({
-                ok: true
-            })
+                ok: true,
+                msg: 'Order updated successfully',
+                orderPoint: await orderPoint.populate('products.product')
+            });
             return;
-            // const orderPoint = await this.orderPointService.updateOrderPoint(request.params.id, {});
+
         } catch (error) {
-            console.error('[ERROR][addNewProductToOrderPoint]', error)
+            console.error('[ERROR][updateOrderPoint]', error);
             response.status(500).json({
                 ok: false,
-                msg: "Ups! Error invoke"
-            })
+                msg: 'Oops! An error occurred while updating the order.'
+            });
+            return;
         }
     }
 
@@ -159,8 +239,7 @@ export class OrderPointController {
                 tableId,
                 products: productsPoint,
                 subtotal,
-                pointOfSalesId,
-                userId: uid
+                pointOfSalesId
             });
 
             //Guardar la orden que se creó en la mesa

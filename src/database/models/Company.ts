@@ -4,7 +4,8 @@ import { Company } from '../../interfaces';
 export const CompanySchema: Schema = new Schema({
     identifier: {
         type: Number,
-        required: true
+        required: true,
+        unique: true,
     },
     name: {
         type: String,

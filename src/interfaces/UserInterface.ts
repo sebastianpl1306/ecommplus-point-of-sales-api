@@ -1,8 +1,10 @@
 import { Document } from 'mongoose';
+import { PointOfSales } from './PointOfSalesInterfaces';
 
 export enum AuthenticationRoles {
     CUSTOMER = 'customer',
-    ADMIN = 'admin'
+    ADMIN = 'admin',
+    POINT_OF_SALES = 'pointOfSales',
 }
 
 export interface Direction{
@@ -23,6 +25,7 @@ export interface User extends Document {
     messageDisabled?: string;
     company: string;
     isOnline: boolean;
+    pointOfSales?: PointOfSales;
 }
 
 export interface FiltersUsers {

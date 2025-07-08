@@ -11,7 +11,7 @@ export interface OrderPoint extends Document {
     status: OrderPointStatus;
     subtotal: number;
     pointOfSales: PointOfSales;
-    user: User;
+    user?: User | null;
 }
 
 export interface ProductsOrderPoint{

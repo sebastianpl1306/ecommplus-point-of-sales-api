@@ -59,4 +59,30 @@ export class TableService {
             throw new Error(`[createTable] ${error}`);
         }
     }
+
+    /**
+     * Permite obtener una mesa por su id
+     * @param tableId id de la mesa
+     * @returns Mesa encontrada
+     */
+    async getTableById(tableId: string) {
+        try {
+            if (!tableId) {
+                throw new Error('missing info');
+            }
+
+            const table = await TableModel.findById(tableId)
+                .populate('pointOfSales')
+                .populate({
+                    path: 'activeOrderPoint',
+                    populate: {
+                        path: 'products.product',
+                    },
+                });
+
+            return table;
+        } catch (error) {
+            throw new Error(`[getTableById] ${error}`);
+        }
+    }
 }
