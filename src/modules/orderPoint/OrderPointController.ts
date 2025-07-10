@@ -308,4 +308,90 @@ export class OrderPointController {
             })
         }
     }
+
+    async removeProductFromOrderPoint(request: Request, response: Response) {
+        const { productsToRemove } = request.body;
+        const orderPointId = request.params.orderPointId;
+        const { companyId, uid }: InfoTokenSave = request.body.tokenInfo;
+
+        try {
+            if (!productsToRemove || !Array.isArray(productsToRemove) || productsToRemove.length === 0 || !orderPointId) {
+                response.status(400).json({
+                    ok: false,
+                    msg: 'Missing information: productsToRemove (array of product IDs) or orderPointId are required.'
+                });
+                return;
+            }
+
+            const orderPoint = await OrderPointModel.findById(orderPointId);
+
+            if (!orderPoint) {
+                response.status(404).json({
+                    ok: false,
+                    msg: 'Order not found.'
+                });
+                return;
+            }
+
+            // Ensure the order belongs to the correct company (security check)
+            const pointOfSales = await PointOfSalesModel.findById(orderPoint.pointOfSales);
+            if (!pointOfSales || pointOfSales.company.toString() !== companyId) {
+                response.status(401).json({
+                    ok: false,
+                    msg: 'Unauthorized: Order does not belong to your company.'
+                });
+                return;
+            }
+
+            let currentProductsInOrder: ProductsOrderPoint[] = [...orderPoint.products];
+            let subtotal = orderPoint.subtotal || 0;
+
+            const company = await CompanyModel.findById(companyId).populate('config');
+            const isStockActive = company?.config?.isStockActive || false;
+
+            for (const productIdToRemove of productsToRemove) {
+                const existingProductIndex = currentProductsInOrder.findIndex(
+                    (p) => p.product.toString() === productIdToRemove
+                );
+
+                if (existingProductIndex !== -1) {
+                    const productToRemove = currentProductsInOrder[existingProductIndex];
+                    const productDb = await ProductModel.findById(productToRemove.product);
+
+                    // Adjust subtotal by removing the product's total
+                    subtotal -= productToRemove.amount * productToRemove.price;
+
+                    // Remove the product from the array
+                    currentProductsInOrder.splice(existingProductIndex, 1);
+
+                    if (isStockActive && productDb) {
+                        productDb.stock += productToRemove.amount; // Return stock
+                        await productDb.save();
+                    }
+                } else {
+                    console.warn(`[WARNING][removeProductFromOrderPoint] Product with ID ${productIdToRemove} not found in order. Skipping.`);
+                }
+            }
+
+            orderPoint.products = currentProductsInOrder;
+            orderPoint.subtotal = subtotal;
+
+            await orderPoint.save();
+
+            response.status(200).json({
+                ok: true,
+                msg: 'Products removed from order successfully',
+                orderPoint: await orderPoint.populate('products.product')
+            });
+            return;
+
+        } catch (error) {
+            console.error('[ERROR][removeProductFromOrderPoint]', error);
+            response.status(500).json({
+                ok: false,
+                msg: 'Oops! An error occurred while removing products from the order.'
+            });
+            return;
+        }
+    }
 }

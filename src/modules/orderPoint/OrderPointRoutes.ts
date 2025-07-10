@@ -9,4 +9,6 @@ export const OrderPointRouter: Router = Router();
 
 OrderPointRouter.post('/create', validateJWTPointOfSales, orderPointController.createOrderPoint.bind(orderPointController))
 
-OrderPointRouter.post('/updateProduct/:orderPointId', validateJWTPointOfSales, orderPointController.updateOrderPoint.bind(orderPointController))
+OrderPointRouter.put('/updateProduct/:orderPointId', validateJWTPointOfSales, orderPointController.updateOrderPoint.bind(orderPointController))
+
+OrderPointRouter.put('/removeProduct/:orderPointId', validateJWTPointOfSales, orderPointController.removeProductFromOrderPoint.bind(orderPointController))
