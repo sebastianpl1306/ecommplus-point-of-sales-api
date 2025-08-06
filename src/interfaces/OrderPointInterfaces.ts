@@ -22,6 +22,7 @@ export interface ProductsOrderPoint{
     status: ProductOrderPointStatus;
     note?: string;
     optionsSelected?: OptionsSelected[];
+    sentToKitchenAt?: Date;
 }
 
 export enum OrderPointStatus {
@@ -29,10 +30,13 @@ export enum OrderPointStatus {
     PREPARING = "preparing",
     READY = "ready",
     SERVED = "served",
-    PAID = "paid"
+    PAID = "paid",
+    CANCELED = "canceled"
 }
 
 export enum ProductOrderPointStatus {
     PENDING = "pending",
-    READY = "ready"
+    IN_KITCHEN = "in_kitchen",
+    READY = "ready",
+    CANCELED = "canceled"
 }

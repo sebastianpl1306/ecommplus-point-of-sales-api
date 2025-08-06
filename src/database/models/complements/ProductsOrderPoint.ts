@@ -32,5 +32,9 @@ export const ProductsOrderPointSchema = new Schema({
     optionsSelected: {
         type: [ OptionsSelectedSchema ],
         required: false
+    },
+    sentToKitchenAt: {
+        type: Date,
+        required: false
     }
 }, { _id: false });

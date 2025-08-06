@@ -86,6 +86,14 @@ export class TableController {
     async getTableById (request: Request, response: Response) {
         const tableId = request.query.tableId as string;
 
+        if (!tableId) {
+            response.status(401).json({
+                ok: false,
+                msg: "Table ID is required"
+            })
+            return;
+        }
+
         try {
             const table = await this.tableService.getTableById(tableId);
             if(!table) {

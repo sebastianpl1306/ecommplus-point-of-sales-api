@@ -1,7 +1,7 @@
 import { Request, Response } from 'express';
 import { OrderPointService } from './OrderPointServices';
 import { CompanyModel, OrderPointModel, PointOfSalesModel, ProductModel, TableModel } from '../../database/models';
-import { InfoTokenSave, OrderPointStatus, ProductOrderPointStatus, ProductsOrderPoint, TableStatus } from '../../interfaces';
+import { InfoTokenSave, OrderPointStatus, ProductOrderPointStatus, Products, ProductsOrderPoint, TableStatus } from '../../interfaces';
 import { QueryFiltersOrderPoints } from '../../helpers';
 
 export class OrderPointController {
@@ -390,6 +390,127 @@ export class OrderPointController {
             response.status(500).json({
                 ok: false,
                 msg: 'Oops! An error occurred while removing products from the order.'
+            });
+            return;
+        }
+    }
+
+    /**
+     * @description Sends selected products from an order to the kitchen by updating their status
+     * This creates a "comanda" (kitchen order) with the selected products
+     */
+    async sendProductsToKitchen(request: Request, response: Response) {
+        const { productsToSend } = request.body; // Array of product IDs to send to kitchen
+        const orderPointId = request.params.orderPointId;
+        const { companyId, uid }: InfoTokenSave = request.body.tokenInfo;
+
+        try {
+            if (!productsToSend || !Array.isArray(productsToSend) || productsToSend.length === 0 || !orderPointId) {
+                response.status(400).json({
+                    ok: false,
+                    msg: 'Missing information: productsToSend (array of product IDs) and orderPointId are required.'
+                });
+                return;
+            }
+
+            const orderPoint = await OrderPointModel.findById(orderPointId).populate('products.product');
+
+            if (!orderPoint) {
+                response.status(404).json({
+                    ok: false,
+                    msg: 'Order not found.'
+                });
+                return;
+            }
+
+            // Security check: Ensure the order belongs to the correct company
+            const pointOfSales = await PointOfSalesModel.findById(orderPoint.pointOfSales);
+            if (!pointOfSales || pointOfSales.company.toString() !== companyId) {
+                response.status(401).json({
+                    ok: false,
+                    msg: 'Unauthorized: Order does not belong to your company.'
+                });
+                return;
+            }
+
+            // Validate that the order is in a valid state to send products to kitchen
+            if (orderPoint.status !== OrderPointStatus.PENDING && orderPoint.status !== OrderPointStatus.PREPARING && orderPoint.status !== OrderPointStatus.READY && orderPoint.status !== OrderPointStatus.SERVED) {
+                response.status(400).json({
+                    ok: false,
+                    msg: 'Order must be in PENDING, PREPARING, READY, or SERVED status to send products to kitchen.'
+                });
+                return;
+            }
+
+            let updatedProducts = [...orderPoint.products];
+            const productsForKitchen: ProductsOrderPoint[] = [];
+            let hasValidProducts = false;
+
+            // Process each product to be sent to kitchen
+            for (const productIdToSend of productsToSend) {
+                const productIndex = updatedProducts.findIndex((productFind: ProductsOrderPoint) => {
+                    const product = productFind.product as any;
+                    return product._id && product._id.toString() === productIdToSend
+                });
+
+                if (productIndex !== -1) {
+                    const product = updatedProducts[productIndex];
+                    
+                    // Only send products that are currently PENDING
+                    if (product.status === ProductOrderPointStatus.PENDING) {
+                        // Keep product status as PENDING (they are sent to kitchen but status doesn't change yet)
+                        // The kitchen will update them to READY when they finish cooking
+                        
+                        // Add to kitchen order list
+                        productsForKitchen.push({
+                            ...product,
+                            status: ProductOrderPointStatus.IN_KITCHEN,
+                            sentToKitchenAt: new Date() // Add timestamp when sent to kitchen
+                        });
+
+                        updatedProducts[productIndex] = {
+                            ...product,
+                            status: ProductOrderPointStatus.IN_KITCHEN,
+                            sentToKitchenAt: new Date() // Add timestamp when sent to kitchen
+                        };
+                        hasValidProducts = true;
+                    } else {
+                        console.warn(`[WARNING][sendProductsToKitchen] Product ${productIdToSend} is not in PENDING status. Current status: ${product.status}`);
+                    }
+                } else {
+                    console.warn(`[WARNING][sendProductsToKitchen] Product with ID ${productIdToSend} not found in order.`);
+                }
+            }
+
+            // Update order status to PREPARING when products are sent to kitchen
+            if (hasValidProducts && (orderPoint.status === OrderPointStatus.PENDING || orderPoint.status === OrderPointStatus.READY || orderPoint.status === OrderPointStatus.SERVED || orderPoint.status === OrderPointStatus.PREPARING)) {
+                orderPoint.products = updatedProducts;
+                orderPoint.status = OrderPointStatus.PREPARING;
+            }
+
+            if (!hasValidProducts) {
+                response.status(400).json({
+                    ok: false,
+                    msg: 'No valid products found to send to kitchen. Products must be in PENDING status.'
+                });
+                return;
+            }
+
+            // Update the order with the new status
+            await orderPoint.save();
+
+            response.status(200).json({
+                ok: true,
+                msg: `${productsForKitchen.length} products sent to kitchen successfully`,
+                updatedOrderPoint: await OrderPointModel.findById(orderPointId).populate('products.product')
+            });
+            return;
+
+        } catch (error) {
+            console.error('[ERROR][sendProductsToKitchen]', error);
+            response.status(500).json({
+                ok: false,
+                msg: 'Oops! An error occurred while sending products to kitchen.'
             });
             return;
         }

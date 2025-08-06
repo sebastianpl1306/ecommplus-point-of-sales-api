@@ -12,3 +12,9 @@ OrderPointRouter.post('/create', validateJWTPointOfSales, orderPointController.c
 OrderPointRouter.put('/updateProduct/:orderPointId', validateJWTPointOfSales, orderPointController.updateOrderPoint.bind(orderPointController))
 
 OrderPointRouter.put('/removeProduct/:orderPointId', validateJWTPointOfSales, orderPointController.removeProductFromOrderPoint.bind(orderPointController))
+
+// Enviar productos seleccionados a cocina (crear comanda)
+OrderPointRouter.put('/sendToKitchen/:orderPointId', validateJWTPointOfSales, orderPointController.sendProductsToKitchen.bind(orderPointController));
+
+// Marcar productos como listos desde cocina
+// OrderPointRouter.put('/markProductsReady/:orderPointId', validateJWTPointOfSales, orderPointController.updateKitchenProductStatus.bind(orderPointController));
