@@ -27,6 +27,33 @@ export const OrderPointSchema = new Schema({
       type: Types.ObjectId,
       ref: "User",
       required: false
+    },
+    paymentMethod: {
+      type: Types.ObjectId,
+      ref: "PaymentMethod"
+    },
+    discount: {
+      type: Number,
+      required: false,
+      default: 0
+    },
+    total: {
+      type: Number,
+      required: true,
+      default: 0
+    },
+    processedAt: {
+      type: Date,
+      required: false
+    },
+    processedBy: {
+      type: Types.ObjectId,
+      ref: "User",
+      required: false
+    },
+    notes: {
+      type: String,
+      required: false
     }
   }, { timestamps: true });
   

@@ -4,6 +4,7 @@ import { Products } from "./ProductsInterface";
 import { OptionsSelected } from "./OrderInterface";
 import { PointOfSales } from "./PointOfSalesInterfaces";
 import { User } from "./UserInterface";
+import { PaymentMethod } from "./PaymentMethodInterfaces";
 
 export interface OrderPoint extends Document {
     table: Table;
@@ -12,6 +13,12 @@ export interface OrderPoint extends Document {
     subtotal: number;
     pointOfSales: PointOfSales;
     user?: User | null;
+    paymentMethod: PaymentMethod;
+    notes?: string;
+    discount?: number;
+    total: number;
+    processedAt?: Date;
+    processedBy?: User | null;
 }
 
 export interface ProductsOrderPoint{

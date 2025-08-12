@@ -19,9 +19,9 @@ export class PointOfSalesService {
         if (!pointOfSalesId) {
             throw new Error('Point of Sales ID is required');
         }
-    
-        const pointOfSales = await PointOfSalesModel.findById(pointOfSalesId);
-    
+
+        const pointOfSales = await PointOfSalesModel.findById(pointOfSalesId).populate('paymentMethods');
+
         if (!pointOfSales) {
             throw new Error('Point of Sales not found');
         }

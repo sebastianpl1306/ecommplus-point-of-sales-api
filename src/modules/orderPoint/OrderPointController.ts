@@ -515,4 +515,137 @@ export class OrderPointController {
             return;
         }
     }
+
+    /**
+     * @description Processes a complete order point - handles payment, finalizes order, and frees up the table
+     * This endpoint is typically used when the customer is ready to pay and complete their order
+     */
+    async processOrderPoint(request: Request, response: Response) {
+        const { paymentMethod, discount, notes } = request.body;
+        const orderPointId = request.params.orderPointId;
+        const { companyId, uid }: InfoTokenSave = request.body.tokenInfo;
+
+        try {
+            if (!orderPointId) {
+                response.status(400).json({
+                    ok: false,
+                    msg: 'OrderPoint ID is required.'
+                });
+                return;
+            }
+
+            const orderPoint = await OrderPointModel.findById(orderPointId)
+                .populate('products.product')
+                .populate('table')
+                .populate('pointOfSales');
+
+            if (!orderPoint) {
+                response.status(404).json({
+                    ok: false,
+                    msg: 'Order not found.'
+                });
+                return;
+            }
+
+            // Security check: Ensure the order belongs to the correct company
+            const pointOfSales = await PointOfSalesModel.findById(orderPoint.pointOfSales);
+            if (!pointOfSales || pointOfSales.company.toString() !== companyId) {
+                response.status(401).json({
+                    ok: false,
+                    msg: 'Unauthorized: Order does not belong to your company.'
+                });
+                return;
+            }
+
+            // Validate that the order can be processed
+            if (orderPoint.status === OrderPointStatus.PAID) {
+                response.status(400).json({
+                    ok: false,
+                    msg: 'Order has already been paid and processed.'
+                });
+                return;
+            }
+
+            if (orderPoint.status === OrderPointStatus.CANCELED) {
+                response.status(400).json({
+                    ok: false,
+                    msg: 'Cannot process a cancelled order.'
+                });
+                return;
+            }
+
+            // Calculate final totals
+            let finalSubtotal = orderPoint.subtotal;
+            let discountAmount = 0;
+            let finalTotal = finalSubtotal;
+
+            // Apply discount if provided
+            if (discount && discount > 0) {
+                if (discount <= 100) { // Percentage discount
+                    discountAmount = (finalSubtotal * discount) / 100;
+                } else { // Fixed amount discount
+                    discountAmount = Math.min(discount, finalSubtotal);
+                }
+                finalTotal -= discountAmount;
+            }
+
+            // Ensure all products are marked as delivered
+            const updatedProducts = orderPoint.products.map(product => ({
+                ...product,
+                status: ProductOrderPointStatus.READY,
+            }));
+
+            // Update order status and totals
+            orderPoint.products = updatedProducts;
+            orderPoint.status = OrderPointStatus.PAID;
+            orderPoint.paymentMethod = paymentMethod || 'cash';
+            orderPoint.discount = discountAmount;
+            orderPoint.total = finalTotal;
+            orderPoint.processedAt = new Date();
+            orderPoint.processedBy = uid as any;
+            orderPoint.notes = notes;
+
+            await orderPoint.save();
+
+            // Free up the table if it exists
+            if (orderPoint.table) {
+                const table = await TableModel.findById(orderPoint.table);
+                if (table) {
+                    table.status = TableStatus.FREE;
+                    table.activeOrderPoint = null;
+                    await table.save();
+                }
+            }
+
+            // Prepare response with order summary
+            const orderSummary = {
+                orderPointId: orderPoint._id,
+                tableNumber: orderPoint.table?.number || null,
+                subtotal: finalSubtotal,
+                discount: discountAmount,
+                finalTotal: finalTotal,
+                paymentMethod: orderPoint.paymentMethod,
+                processedAt: orderPoint.processedAt,
+                processedBy: uid,
+                products: orderPoint.products.length,
+                notes: notes
+            };
+
+            response.status(200).json({
+                ok: true,
+                msg: 'Order processed successfully',
+                orderSummary,
+                processedOrder: orderPoint
+            });
+            return;
+
+        } catch (error) {
+            console.error('[ERROR][processOrderPoint]', error);
+            response.status(500).json({
+                ok: false,
+                msg: 'Oops! An error occurred while processing the order.'
+            });
+            return;
+        }
+    }
 }

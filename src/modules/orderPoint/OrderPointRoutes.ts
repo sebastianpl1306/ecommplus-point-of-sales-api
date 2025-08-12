@@ -19,3 +19,4 @@ OrderPointRouter.put('/sendToKitchen/:orderPointId', validateJWTPointOfSales, or
 // Marcar productos como listos desde cocina
 // OrderPointRouter.put('/markProductsReady/:orderPointId', validateJWTPointOfSales, orderPointController.updateKitchenProductStatus.bind(orderPointController));
 
+OrderPointRouter.put('/process/:orderPointId', validateJWTPointOfSales, orderPointController.processOrderPoint.bind(orderPointController));
