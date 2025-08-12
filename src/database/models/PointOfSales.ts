@@ -14,7 +14,12 @@ export const PointOfSalesSchema: Schema = new Schema({
       type: Types.ObjectId,
       ref: 'Company',
       required: true
-    }
+    },
+    paymentMethods: [{
+      type: Types.ObjectId,
+      ref: 'PaymentMethod',
+      required: true
+    }]
 }, { timestamps: true });
 
 export const PointOfSalesModel = model<PointOfSales>('PointOfSales', PointOfSalesSchema);

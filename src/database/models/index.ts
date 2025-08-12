@@ -10,3 +10,4 @@ export * from './CompanyConfig';
 export * from './DesignCompany';
 export * from './Table';
 export * from './PointOfSales';
+export * from './PaymentMethod';
