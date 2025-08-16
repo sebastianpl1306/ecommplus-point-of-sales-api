@@ -72,7 +72,7 @@ export class OrderPointController {
                 }
 
                 const existingProductIndex = currentProductsInOrder.findIndex(
-                    (p) => p.product.toString() === productToAdd.product
+                    (p) => p.product.toString() === productToAdd.product && p.status === ProductOrderPointStatus.PENDING
                 );
 
                 const productPrice = productDb.pointPrice;
@@ -433,62 +433,22 @@ export class OrderPointController {
                 return;
             }
 
-            // Validate that the order is in a valid state to send products to kitchen
-            if (orderPoint.status !== OrderPointStatus.PENDING && orderPoint.status !== OrderPointStatus.PREPARING && orderPoint.status !== OrderPointStatus.READY && orderPoint.status !== OrderPointStatus.SERVED) {
-                response.status(400).json({
-                    ok: false,
-                    msg: 'Order must be in PENDING, PREPARING, READY, or SERVED status to send products to kitchen.'
-                });
-                return;
-            }
+            let productsSentCount = 0;
+            const currentTime = new Date();
 
-            let updatedProducts = [...orderPoint.products];
-            const productsForKitchen: ProductsOrderPoint[] = [];
-            let hasValidProducts = false;
-
-            // Process each product to be sent to kitchen
-            for (const productIdToSend of productsToSend) {
-                const productIndex = updatedProducts.findIndex((productFind: ProductsOrderPoint) => {
-                    const product = productFind.product as any;
-                    return product._id && product._id.toString() === productIdToSend
-                });
-
-                if (productIndex !== -1) {
-                    const product = updatedProducts[productIndex];
-                    
-                    // Only send products that are currently PENDING
-                    if (product.status === ProductOrderPointStatus.PENDING) {
-                        // Keep product status as PENDING (they are sent to kitchen but status doesn't change yet)
-                        // The kitchen will update them to READY when they finish cooking
-                        
-                        // Add to kitchen order list
-                        productsForKitchen.push({
-                            ...product,
-                            status: ProductOrderPointStatus.IN_KITCHEN,
-                            sentToKitchenAt: new Date() // Add timestamp when sent to kitchen
-                        });
-
-                        updatedProducts[productIndex] = {
-                            ...product,
-                            status: ProductOrderPointStatus.IN_KITCHEN,
-                            sentToKitchenAt: new Date() // Add timestamp when sent to kitchen
-                        };
-                        hasValidProducts = true;
-                    } else {
-                        console.warn(`[WARNING][sendProductsToKitchen] Product ${productIdToSend} is not in PENDING status. Current status: ${product.status}`);
-                    }
-                } else {
-                    console.warn(`[WARNING][sendProductsToKitchen] Product with ID ${productIdToSend} not found in order.`);
+            // Update products from PENDING to IN_KITCHEN for the specified product IDs
+            orderPoint.products.forEach((product: ProductsOrderPoint) => {
+                const productId = (product.product as any)._id.toString();
+                
+                // If this product ID is in the list to send AND it's currently PENDING
+                if (productsToSend.includes(productId) && product.status === ProductOrderPointStatus.PENDING) {
+                    product.status = ProductOrderPointStatus.IN_KITCHEN;
+                    product.sentToKitchenAt = currentTime;
+                    productsSentCount++;
                 }
-            }
+            });
 
-            // Update order status to PREPARING when products are sent to kitchen
-            if (hasValidProducts && (orderPoint.status === OrderPointStatus.PENDING || orderPoint.status === OrderPointStatus.READY || orderPoint.status === OrderPointStatus.SERVED || orderPoint.status === OrderPointStatus.PREPARING)) {
-                orderPoint.products = updatedProducts;
-                orderPoint.status = OrderPointStatus.PREPARING;
-            }
-
-            if (!hasValidProducts) {
+            if (productsSentCount === 0) {
                 response.status(400).json({
                     ok: false,
                     msg: 'No valid products found to send to kitchen. Products must be in PENDING status.'
@@ -496,15 +456,19 @@ export class OrderPointController {
                 return;
             }
 
-            // Update the order with the new status
+            // Update order status to PREPARING if it's not already
+            if (orderPoint.status === OrderPointStatus.PENDING) {
+                orderPoint.status = OrderPointStatus.PREPARING;
+            }
+
+            // Save the updated order
             await orderPoint.save();
 
             response.status(200).json({
                 ok: true,
-                msg: `${productsForKitchen.length} products sent to kitchen successfully`,
-                updatedOrderPoint: await OrderPointModel.findById(orderPointId).populate('products.product')
+                msg: `${productsSentCount} products sent to kitchen successfully`,
+                orderPoint: await OrderPointModel.findById(orderPointId).populate('products.product')
             });
-            return;
 
         } catch (error) {
             console.error('[ERROR][sendProductsToKitchen]', error);
@@ -512,7 +476,6 @@ export class OrderPointController {
                 ok: false,
                 msg: 'Oops! An error occurred while sending products to kitchen.'
             });
-            return;
         }
     }
 
