@@ -5,6 +5,7 @@ import { OptionsSelected } from "./OrderInterface";
 import { PointOfSales } from "./PointOfSalesInterfaces";
 import { User } from "./UserInterface";
 import { PaymentMethod } from "./PaymentMethodInterfaces";
+import { ICashSession } from "./CashSessionInterfaces";
 
 export interface OrderPoint extends Document {
     table: Table;
@@ -17,6 +18,7 @@ export interface OrderPoint extends Document {
     notes?: string;
     discount?: number;
     total: number;
+    session: ICashSession;
     processedAt?: Date;
     processedBy?: User | null;
 }

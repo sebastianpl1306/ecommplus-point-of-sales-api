@@ -54,7 +54,11 @@ export const OrderPointSchema = new Schema({
     notes: {
       type: String,
       required: false
-    }
-  }, { timestamps: true });
-  
-  export const OrderPointModel = model<OrderPoint>("OrderPoint", OrderPointSchema);
+    },
+    session: {
+      type: Schema.Types.ObjectId,
+      ref: 'CashSession'
+    },
+}, { timestamps: true });
+
+export const OrderPointModel = model<OrderPoint>("OrderPoint", OrderPointSchema);

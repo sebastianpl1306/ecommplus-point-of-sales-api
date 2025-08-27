@@ -206,12 +206,21 @@ export class OrderPointController {
                 return;
             }
 
-            const pointOfSales = await PointOfSalesModel.findById(pointOfSalesId);
+            const pointOfSales = await PointOfSalesModel.findById(pointOfSalesId).populate('activeSession');
 
             //Verifica que el punto de venta pertenezca a la compañía
             if(!pointOfSales || pointOfSales.company.toString() !== companyId){
-                console.log({ pointCompany: pointOfSales!.company._id, companyId });
                 console.error(`[ERROR][createOrderPoint] El punto de venta ${pointOfSalesId} no pertenece a la compañía ${companyId}`);
+                response.status(400).json({
+                    ok: 'false',
+                    msg: 'Unauthorized'
+                })
+                return;
+            }
+
+            // Verifica que el punto de venta tenga una sesión activa
+            if(!pointOfSales.activeSession){
+                console.error(`[ERROR][createOrderPoint] El punto de venta ${pointOfSalesId} no tiene una sesión activa`);
                 response.status(400).json({
                     ok: 'false',
                     msg: 'Unauthorized'
@@ -239,7 +248,8 @@ export class OrderPointController {
                 tableId,
                 products: productsPoint,
                 subtotal,
-                pointOfSalesId
+                pointOfSalesId,
+                sessionId: pointOfSales.activeSession._id as string,
             });
 
             //Guardar la orden que se creó en la mesa

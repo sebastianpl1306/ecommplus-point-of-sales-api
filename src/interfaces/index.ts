@@ -7,3 +7,5 @@ export * from './TableInterfaces';
 export * from './OrderPointInterfaces';
 export * from './PointOfSalesInterfaces';
 export * from './PaymentMethodInterfaces';
+export * from './CashSessionInterfaces';
+export * from './ReportsInterfaces';

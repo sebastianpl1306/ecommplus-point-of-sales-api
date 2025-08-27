@@ -9,6 +9,7 @@ interface CreateOrderParams {
   subtotal: number;
   userId?: string;
   pointOfSalesId: string;
+  sessionId: string;
 }
 
 interface UpdateOrderParams {
@@ -51,10 +52,10 @@ export class OrderPointService {
   /**
   * Permite crear una orden de punto de venta
   */
-  async createOrderPoint ({ tableId, products, status, subtotal, userId, pointOfSalesId }: CreateOrderParams) {
+  async createOrderPoint ({ tableId, products, status, subtotal, userId, pointOfSalesId, sessionId }: CreateOrderParams) {
     try {
-      if (!tableId || !products || !status || !subtotal || !pointOfSalesId) {
-        console.error('[ERROR][createOrderPoint] missing info', { tableId, products, status, subtotal, pointOfSalesId, userId });
+      if (!tableId || !products || !status || !subtotal || !pointOfSalesId || !sessionId) {
+        console.error('[ERROR][OrderPointServices][createOrderPoint] missing info', { tableId, products, status, subtotal, pointOfSalesId, userId, sessionId });
         throw new Error('missing info');
       }
 
@@ -64,6 +65,7 @@ export class OrderPointService {
         status,
         subtotal,
         pointOfSales: pointOfSalesId,
+        session: sessionId,
         user: userId
       });
 
@@ -72,7 +74,7 @@ export class OrderPointService {
 
       return newOrder;
     } catch (error) {
-      throw new Error(`[createOrderPoint] ${error}`);
+      throw new Error(`[OrderPointServices][createOrderPoint] ${error}`);
     }
   }
 
