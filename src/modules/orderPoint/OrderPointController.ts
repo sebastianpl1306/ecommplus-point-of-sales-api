@@ -259,7 +259,7 @@ export class OrderPointController {
 
             response.status(200).json({
                 ok: true,
-                newOrderPoint
+                newOrderPoint: await newOrderPoint.populate('products.product')
             })
         } catch (error) {
             console.error('[ERROR][createOrderPoint]', error)
