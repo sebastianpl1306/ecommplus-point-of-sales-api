@@ -6,6 +6,12 @@ export const ZReportRoutes = Router();
 const zReportController = new ZReportController();
 
 /**
+ * @route   POST /api/z-reports/exportForPrint
+ * @desc    Exportar reporte Z para impresión
+ */
+ZReportRoutes.get('/exportForPrint/:reportId', validateJWTPointOfSales, zReportController.exportZReportForPrint.bind(zReportController));
+
+/**
  * @route   POST /api/z-reports/generate
  * @desc    Generar nuevo reporte Z
  * @access  Private

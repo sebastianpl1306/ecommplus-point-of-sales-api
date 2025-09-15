@@ -4,8 +4,7 @@ import { Table, TableStatus } from "../../interfaces";
 export const TableSchema = new Schema({
   number: {
     type: Number,
-    required: true,
-    unique: true
+    required: true
   },
   capacity: {
     type: Number,

@@ -198,6 +198,7 @@ export class CashSessionService {
       }
 
       await session.save();
+      await pointOfSales.save();
       return await session.populate('user closedBy pointOfSales') as ICashSession;
     } catch (error) {
       console.error('[ERROR][closeSession]', error);
@@ -213,8 +214,8 @@ export class CashSessionService {
           const cashSales = await OrderPointModel.aggregate([
               {
                   $match: {
-                      sessionId: sessionId,
-                      paymentMethod: '689b476d6106ddba8ab6666a', // ID del método de pago 'Efectivo'
+                      session: new Types.ObjectId(sessionId),
+                      paymentMethod: new Types.ObjectId('689b476d6106ddba8ab6666a'), // ID del método de pago 'Efectivo'
                       status: OrderPointStatus.PAID
                   }
               },

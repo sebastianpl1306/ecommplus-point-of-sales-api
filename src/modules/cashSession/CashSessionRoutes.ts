@@ -20,7 +20,7 @@ CashSessionRoutes.post('/open', validateJWTPointOfSales, cashSessionController.o
  * @params  sessionId: string
  * @body    { finalCash: number, notes?: string }
  */
-CashSessionRoutes.delete('/close/:sessionId', validateJWTPointOfSales, cashSessionController.closeCashSession.bind(cashSessionController));
+CashSessionRoutes.put('/close/:sessionId', validateJWTPointOfSales, cashSessionController.closeCashSession.bind(cashSessionController));
 
 /**
  * @route   GET /api/cash-sessions/active/:pointOfSalesId
