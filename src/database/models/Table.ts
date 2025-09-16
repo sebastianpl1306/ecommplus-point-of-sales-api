@@ -20,6 +20,11 @@ export const TableSchema = new Schema({
     type: Types.ObjectId,
     default: null
   },
+  tablesGroup :{
+    type: Types.ObjectId,
+    ref: 'TablesGroup',
+    required: true
+  },
   pointOfSales: {
     type: Types.ObjectId,
     ref: 'PointOfSales',

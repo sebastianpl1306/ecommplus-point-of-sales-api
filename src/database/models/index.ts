@@ -13,3 +13,4 @@ export * from './PointOfSales';
 export * from './PaymentMethod';
 export * from './CashSession';
 export * from './ZReport';
+export * from './TablesGroup';

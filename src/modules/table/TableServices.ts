@@ -1,4 +1,4 @@
-import { PointOfSalesModel, TableModel } from "../../database/models";
+import { PointOfSalesModel, TableModel, TablesGroupModel } from "../../database/models";
 
 interface CreateTableParams {
     number: number;
@@ -21,9 +21,23 @@ export class TableService {
                 throw new Error('missing info');
             }
 
-            const tables = await TableModel.find({ pointOfSales: pointOfSalesId });
+            const tablesGroup = await TablesGroupModel.find({ pointOfSales: pointOfSalesId });
 
-            return tables;
+            const finalGroupTables = [];
+            for (const group of tablesGroup) {
+                const groupTables = await TableModel.find({ tablesGroup: group._id })
+                .populate('pointOfSales')
+                .populate({
+                    path: 'activeOrderPoint',
+                    populate: {
+                        path: 'products.product',
+                    },
+                });
+                finalGroupTables.push({group, tables: groupTables});
+            }
+
+            // console.log({ finalGroupTables, tablesGroup });
+            return finalGroupTables;
         } catch (error) {
             throw new Error(`[getTables] ${error}`);
         }

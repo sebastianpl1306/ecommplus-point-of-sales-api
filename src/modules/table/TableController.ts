@@ -71,7 +71,7 @@ export class TableController {
 
             response.status(200).json({
                 ok: true,
-                tables
+                groupsTables: tables
             })
         } catch (error) {
             console.error('[ERROR][getTables]', error)
